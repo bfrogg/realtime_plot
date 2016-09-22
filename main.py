@@ -1,11 +1,7 @@
-from PyQt4 import QtGui, QtCore
-import sys
-import glob
-import serial
+from PyQt4 import QtGui
+import sys, glob, serial, pyqtgraph, threading
 import ui_main
 import numpy as np
-import time
-import pyqtgraph
 
 
 def serial_ports():
@@ -38,33 +34,52 @@ def serial_ports():
 
 
 class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
-    points = 0
 
-    def __init__(self, parent=None):
+    def __init__(self):
         pyqtgraph.setConfigOption('background', 'w')
-        super(GraphPlotter, self).__init__(parent)
+        super().__init__()
         self.setupUi(self)
-        self.pushButton.clicked.connect(self.serial_port_init)
         self.graphicsView.plotItem.showGrid(True, True, 0.7)
         self.comboBox.addItems(serial_ports())
+        self.y = [0]
+
+        # self.pushButton.clicked.connect(self.serial_port_init)
+        # self.port = serial.Serial('/dev/ttyS0', 115200, timeout=0)
 
     def update(self):
-        t1 = time.clock()
-        x = np.arange(self.points)
-        y = np.sin(np.arange(self.points)/self.points*3*np.pi+time.time())
-        c = pyqtgraph.hsvColor(time.time()/5 % 1, alpha=.5)
-        pen = pyqtgraph.mkPen(color=c, width=3)
-        self.graphicsView.plot(x, y, pen=pen, clear=True)
-        print("update took %.02f ms" % ((time.clock()-t1)*1000))
-        QtCore.QTimer.singleShot(1, self.update)
+        try:
+            c = pyqtgraph.hsvColor(0.5, alpha=.5)
+            pen = pyqtgraph.mkPen(color=c, width=3)
+            self.graphicsView.plot(np.arange(len(self.y)), self.y, pen=pen, clear=True)
+        except Exception:
+            print("""Can't update graph""")
 
-    def serial_port_init(self):
-        ser = serial.Serial(self.comboBox.currentText(), 115200, timeout=0)
+
+class SerialMonitor:
+
+    def __init__(self):
+
+        self.running = True
+        self.form = GraphPlotter()
+        self.form.show()
+        self.thread = threading.Thread(target=self.serial_monitor_thread)
+        self.thread.start()
+
+    def serial_monitor_thread(self):
+        while self.running is True:
+            ser = serial.Serial(self.form.comboBox.currentText(), 115200)
+            msg = ser.readline()
+            if msg:
+                try:
+                    self.form.y.append(int(msg))
+                    self.form.update()
+                except ValueError:
+                    print('Wrong data')
+            else:
+                pass
+            ser.close()
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
-    form = GraphPlotter()
-    form.show()
-    form.update()
+    monitor = SerialMonitor()
     app.exec_()
-    print("DONE")

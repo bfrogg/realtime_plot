@@ -59,20 +59,20 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
     def update(self, msg):
         if self.flag == 'a':
             self.a.append(msg)
-            c = pyqtgraph.hsvColor(0.5, alpha=.5)
-            pen = pyqtgraph.mkPen(color=c, width=3)
-            self.plotAB.plot(np.arange(len(self.a)), self.a, pen=pen, clear=True)
+            # c = pyqtgraph.hsvColor(0.5, alpha=.5)
+            # pen1 = pyqtgraph.mkPen(color=c, width=3)
+            # self.plotAB.plot(np.arange(len(self.a)), self.a, pen=pen1, clear=True)
             self.flag = 'b'
 
         elif self.flag == 'b':
             self.b.append(msg)
             c = pyqtgraph.hsvColor(0.2, alpha=.5)
-            pen = pyqtgraph.mkPen(color=c, width=3)
-            self.plotAB.plot(np.arange(len(self.b)), self.b, pen=pen, clear=True)
+            pen2 = pyqtgraph.mkPen(color=c, width=3)
+            self.plotAB.plot(np.arange(len(self.b)), self.b, pen=pen2, clear=True)
             try:
                 print((self.a[-1] - self.a[-2]), (self.b[-1] - self.b[-2]))
                 self.c.append((self.a[-1] - self.a[-2]) / (self.b[-1] - self.b[-2]))
-                self.plotC.plot(np.arange(len(self.c)), self.c, pen=pen, clear=True)
+                self.plotC.plot(np.arange(len(self.c)), self.c, pen=pen2, clear=True)
             except ZeroDivisionError:
                 print('Деление на ноль')
                 self.c.append(0)
@@ -80,6 +80,10 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
                 print('Еще не время для С')
             finally:
                 self.flag = 'a'
+
+            lines = []
+            for y, pen in [(self.a, (255, 0, 0)), (self.b, (0, 255, 0))]:
+                lines.append(self.plotAB.plot(np.arange(len(y)), y, pen=pen))
 
     def clear(self):
         self.a = []

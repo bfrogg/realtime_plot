@@ -82,7 +82,11 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
 
     def clear(self):
         self.a = []
-        self.update(0)
+        self.b = []
+        self.c = [0]
+
+        self.plotAB.clear()
+        self.plotC.clear()
 
 
 class SerialMonitor(QObject):

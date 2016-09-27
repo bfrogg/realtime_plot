@@ -50,7 +50,8 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.plotAB.plotItem.showGrid(True, True, 0.7)
         self.plotC.plotItem.showGrid(True, True, 0.7)
         self.comboBox.addItems(serial_ports())
-        self.monitor = SerialMonitor()
+        self.monitor = SerialMonitor(self.comboBox.currentText())
+        self.comboBox.currentIndexChanged.connect(self.change_port)
         self.monitor.bufferUpdated.connect(self.update)
         self.startButton.clicked.connect(self.monitor.start)
         self.stopButton.clicked.connect(self.monitor.stop)
@@ -88,13 +89,17 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.plotAB.clear()
         self.plotC.clear()
 
+    def change_port(self):
+        self.monitor.port = self.comboBox.currentText()
+
 
 class SerialMonitor(QObject):
     bufferUpdated = pyqtSignal(int)
 
-    def __init__(self):
+    def __init__(self, port):
         super(SerialMonitor, self).__init__()
         self.running = False
+        self.port = port
         self.thread = threading.Thread(target=self.serial_monitor_thread)
 
     def start(self):
@@ -106,7 +111,7 @@ class SerialMonitor(QObject):
 
     def serial_monitor_thread(self):
         while self.running is True:
-            ser = serial.Serial('/dev/ttyS0', 115200)
+            ser = serial.Serial(self.port, 115200)
             msg = ser.readline()
             if msg:
                 try:

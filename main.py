@@ -1,9 +1,12 @@
 from PyQt4 import QtGui
-import sys, glob, serial, pyqtgraph, threading
+from PyQt4.QtCore import QObject, pyqtSignal
+import sys
+import glob
+import serial
+import pyqtgraph
+import threading
 import ui_main
 import numpy as np
-from PyQt4.QtCore import QObject, pyqtSignal
-
 
 
 def serial_ports():
@@ -17,7 +20,6 @@ def serial_ports():
     if sys.platform.startswith('win'):
         ports = ['COM%s' % (i + 1) for i in range(256)]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
-        # this excludes your current terminal "/dev/tty"
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
         ports = glob.glob('/dev/tty.*')
@@ -38,26 +40,50 @@ def serial_ports():
 class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
 
     def __init__(self):
-        pyqtgraph.setConfigOption('background', 'w')
         super().__init__()
+        pyqtgraph.setConfigOption('background', 'w')
+        self.a = []
+        self.b = []
+        self.c = [0]
+        self.flag = 'a'
         self.setupUi(self)
-        self.graphicsView.plotItem.showGrid(True, True, 0.7)
+        self.plotAB.plotItem.showGrid(True, True, 0.7)
+        self.plotC.plotItem.showGrid(True, True, 0.7)
         self.comboBox.addItems(serial_ports())
-        self.y = [0]
         self.monitor = SerialMonitor()
         self.monitor.bufferUpdated.connect(self.update)
-
-        # self.pushButton.clicked.connect(self.serial_port_init)
-        # self.port = serial.Serial('/dev/ttyS0', 115200, timeout=0)
+        self.startButton.clicked.connect(self.monitor.start)
+        self.stopButton.clicked.connect(self.monitor.stop)
+        self.clearBufferButton.clicked.connect(self.clear)
 
     def update(self, msg):
-        try:
-            self.y.append(msg)
+        if self.flag == 'a':
+            self.a.append(msg)
             c = pyqtgraph.hsvColor(0.5, alpha=.5)
             pen = pyqtgraph.mkPen(color=c, width=3)
-            self.graphicsView.plot(np.arange(len(self.y)), self.y, pen=pen, clear=True)
-        except Exception:
-            print("""Can't update graph""")
+            self.plotAB.plot(np.arange(len(self.a)), self.a, pen=pen, clear=True)
+            self.flag = 'b'
+
+        elif self.flag == 'b':
+            self.b.append(msg)
+            c = pyqtgraph.hsvColor(0.2, alpha=.5)
+            pen = pyqtgraph.mkPen(color=c, width=3)
+            self.plotAB.plot(np.arange(len(self.b)), self.b, pen=pen, clear=True)
+            try:
+                print((self.a[-1] - self.a[-2]), (self.b[-1] - self.b[-2]))
+                self.c.append((self.a[-1] - self.a[-2]) / (self.b[-1] - self.b[-2]))
+                self.plotC.plot(np.arange(len(self.c)), self.c, pen=pen, clear=True)
+            except ZeroDivisionError:
+                print('Деление на ноль')
+                self.c.append(0)
+            except IndexError:
+                print('Еще не время для С')
+            finally:
+                self.flag = 'a'
+
+    def clear(self):
+        self.a = []
+        self.update(0)
 
 
 class SerialMonitor(QObject):
@@ -65,9 +91,15 @@ class SerialMonitor(QObject):
 
     def __init__(self):
         super(SerialMonitor, self).__init__()
-        self.running = True
+        self.running = False
         self.thread = threading.Thread(target=self.serial_monitor_thread)
+
+    def start(self):
+        self.running = True
         self.thread.start()
+
+    def stop(self):
+        self.running = False
 
     def serial_monitor_thread(self):
         while self.running is True:
@@ -75,14 +107,13 @@ class SerialMonitor(QObject):
             msg = ser.readline()
             if msg:
                 try:
-                    # self.form.y.append(int(msg))
                     self.bufferUpdated.emit(int(msg))
-                    # self.form.update()
                 except ValueError:
                     print('Wrong data')
             else:
                 pass
             ser.close()
+
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)

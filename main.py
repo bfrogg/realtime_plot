@@ -2,6 +2,8 @@ from PyQt4 import QtGui
 import sys, glob, serial, pyqtgraph, threading
 import ui_main
 import numpy as np
+from PyQt4.QtCore import QObject, pyqtSignal
+
 
 
 def serial_ports():
@@ -42,12 +44,15 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.graphicsView.plotItem.showGrid(True, True, 0.7)
         self.comboBox.addItems(serial_ports())
         self.y = [0]
+        self.monitor = SerialMonitor()
+        self.monitor.bufferUpdated.connect(self.update)
 
         # self.pushButton.clicked.connect(self.serial_port_init)
         # self.port = serial.Serial('/dev/ttyS0', 115200, timeout=0)
 
-    def update(self):
+    def update(self, msg):
         try:
+            self.y.append(msg)
             c = pyqtgraph.hsvColor(0.5, alpha=.5)
             pen = pyqtgraph.mkPen(color=c, width=3)
             self.graphicsView.plot(np.arange(len(self.y)), self.y, pen=pen, clear=True)
@@ -55,24 +60,24 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
             print("""Can't update graph""")
 
 
-class SerialMonitor:
+class SerialMonitor(QObject):
+    bufferUpdated = pyqtSignal(int)
 
     def __init__(self):
-
+        super(SerialMonitor, self).__init__()
         self.running = True
-        self.form = GraphPlotter()
-        self.form.show()
         self.thread = threading.Thread(target=self.serial_monitor_thread)
         self.thread.start()
 
     def serial_monitor_thread(self):
         while self.running is True:
-            ser = serial.Serial(self.form.comboBox.currentText(), 115200)
+            ser = serial.Serial('/dev/ttyS0', 115200)
             msg = ser.readline()
             if msg:
                 try:
-                    self.form.y.append(int(msg))
-                    self.form.update()
+                    # self.form.y.append(int(msg))
+                    self.bufferUpdated.emit(int(msg))
+                    # self.form.update()
                 except ValueError:
                     print('Wrong data')
             else:
@@ -81,5 +86,6 @@ class SerialMonitor:
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
-    monitor = SerialMonitor()
+    plot = GraphPlotter()
+    plot.show()
     app.exec_()

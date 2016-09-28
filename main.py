@@ -18,7 +18,7 @@ def serial_ports():
             A list of the serial ports available on the system
     """
     if sys.platform.startswith('win'):
-        ports = ['COM%s' % (i + 1) for i in range(256)]
+        ports = ['COM' + str((i + 1) for i in range(256))]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
@@ -40,7 +40,7 @@ def serial_ports():
 class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
 
     def __init__(self):
-        super().__init__()
+        super(GraphPlotter, self).__init__()
         pyqtgraph.setConfigOption('background', 'w')
         self.a = []
         self.b = []
@@ -71,10 +71,10 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
                 self.c.append((self.a[-1] - self.a[-2]) / (self.b[-1] - self.b[-2]))
                 self.plotC.plot(np.arange(len(self.c)), self.c, pen=pen2, clear=True)
             except ZeroDivisionError:
-                print('Деление на ноль')
+                print('Division by zero')
                 self.c.append(0)
             except IndexError:
-                print('Еще не время для С')
+                print("C doesn't ready")
             finally:
                 self.flag = 'a'
 
@@ -112,10 +112,10 @@ class SerialMonitor(QObject):
     def serial_monitor_thread(self):
         while self.running is True:
             ser = serial.Serial(self.port, 115200)
-            msg = ser.readline()
+            msg = ser.read()
             if msg:
                 try:
-                    self.bufferUpdated.emit(int(msg))
+                    self.bufferUpdated.emit(ord(msg))
                 except ValueError:
                     print('Wrong data')
             else:

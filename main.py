@@ -59,7 +59,7 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.monitor.bufferUpdated.connect(self.update)
         self.startButton.clicked.connect(self.monitor.start)
         self.stopButton.clicked.connect(self.monitor.stop)
-        self.clearBufferButton.clicked.connect(self.clear)
+        self.clearBufferButton.clicked.connect(self.clear_buffer)
         self.monitorClose.connect(self.monitor.exit_f)
 
     def update(self, a, b):
@@ -91,6 +91,12 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
     def clear(self):
         self.plotAB.clear()
         self.plotC.clear()
+
+    def clear_buffer(self):
+        self.a = []
+        self.b = []
+        self.c = [0]
+        self.clear()
 
     def change_port(self):
         self.monitor.port = str(self.comboBox.currentText())
@@ -136,8 +142,9 @@ class SerialMonitor(QObject):
                         else:
                             pass
                         ser.close()
-                except:
+                except Exception:
                     print('Serial port ERROR')
+                    self._stop = True
 
             if self.exit is True:
                 break

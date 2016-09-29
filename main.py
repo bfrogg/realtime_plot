@@ -46,11 +46,12 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.a = []
         self.b = []
         self.c = [0]
-        self.raw_a = []
-        self.raw_b = []
-        self.raw_c = []
         self.setupUi(self)
         self.plotAB.plotItem.showGrid(True, True, 0.7)
+        self.plotAB.setYRange(0, 200, padding=0)
+        self.plotAB.setXRange(0, 100, padding=0)
+        self.plotC.setYRange(-20, 20, padding=0)
+        self.plotC.setXRange(0, 100, padding=0)
         self.plotC.plotItem.showGrid(True, True, 0.7)
         self.comboBox.addItems(serial_ports())
         self.monitor = SerialMonitor(self.comboBox.currentText())
@@ -68,21 +69,26 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         c1 = pyqtgraph.hsvColor(0.8, alpha=.5)
         c2 = pyqtgraph.hsvColor(0.5, alpha=.5)
         c3 = pyqtgraph.hsvColor(0.7, alpha=.5)
-        for y, pen in [(self.a, c1), (self.b, c2)]:
-            self.plotAB.plot(np.arange(len(y)), y, pen=pen)
+
+        if len(self.a) > 100:
+            num = len(self.a) - 100
+            self.clear()
+
+        else:
+            num = 0
+
+        for y, pen in [(self.a[num::], c1), (self.b[num::], c2)]:
+            self.plotAB.plot(np.arange(len(self.a[num::])), y, pen=pen)
         try:
             # print((self.a[-1] - self.a[-2]), (self.b[-1] - self.b[-2]))
             self.c.append((self.a[-1] - self.a[-2]) / (self.b[-1] - self.b[-2]))
-            self.plotC.plot(np.arange(len(self.c)), self.c, pen=c3, clear=True)
+            self.plotC.plot(np.arange(len(self.a[num::])), self.c[num::], pen=c3, clear=True)
         except ZeroDivisionError:
             self.c.append(0)
         except IndexError:
             pass
 
     def clear(self):
-        self.a = []
-        self.b = []
-        self.c = [0]
         self.plotAB.clear()
         self.plotC.clear()
 

@@ -46,7 +46,6 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.a = []
         self.b = []
         self.c = [0]
-        self.flag = 'a'
         self.setupUi(self)
         self.plotAB.plotItem.showGrid(True, True, 0.7)
         self.plotC.plotItem.showGrid(True, True, 0.7)
@@ -59,29 +58,24 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.clearBufferButton.clicked.connect(self.clear)
         self.monitorClose.connect(self.monitor.exit_f)
 
-    def update(self, msg):
-        if self.flag == 'a':
-            self.a.append(msg)
-            self.flag = 'b'
+    def update(self, a, b):
 
-        elif self.flag == 'b':
-            self.b.append(msg)
-            c = pyqtgraph.hsvColor(0.2, alpha=.5)
-            pen2 = pyqtgraph.mkPen(color=c, width=3)
-            try:
-                print((self.a[-1] - self.a[-2]), (self.b[-1] - self.b[-2]))
-                self.c.append((self.a[-1] - self.a[-2]) / (self.b[-1] - self.b[-2]))
-                self.plotC.plot(np.arange(len(self.c)), self.c, pen=pen2, clear=True)
-            except ZeroDivisionError:
-                print('Division by zero')
-                self.c.append(0)
-            except IndexError:
-                print("C doesn't ready")
-            finally:
-                self.flag = 'a'
+        self.a.append(a)
+        self.b.append(b)
+        c = pyqtgraph.hsvColor(0.2, alpha=.5)
+        pen2 = pyqtgraph.mkPen(color=c, width=3)
+        try:
+            print((self.a[-1] - self.a[-2]), (self.b[-1] - self.b[-2]))
+            self.c.append((self.a[-1] - self.a[-2]) / (self.b[-1] - self.b[-2]))
+            self.plotC.plot(np.arange(len(self.c)), self.c, pen=pen2, clear=True)
+        except ZeroDivisionError:
+            print('Division by zero')
+            self.c.append(0)
+        except IndexError:
+            print("C doesn't ready")
 
-            for y, pen in [(self.a, (255, 0, 0)), (self.b, (0, 255, 0))]:
-                self.plotAB.plot(np.arange(len(y)), y, pen=pen)
+        for y, pen in [(self.a, (255, 0, 0)), (self.b, (0, 255, 0))]:
+            self.plotAB.plot(np.arange(len(y)), y, pen=pen)
 
     def clear(self):
         self.a = []
@@ -98,7 +92,7 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
 
 
 class SerialMonitor(QObject):
-    bufferUpdated = pyqtSignal(int)
+    bufferUpdated = pyqtSignal(int, int)
 
     def __init__(self, port):
         super(SerialMonitor, self).__init__()
@@ -123,12 +117,11 @@ class SerialMonitor(QObject):
     def serial_monitor_thread(self):
         while True:
             while self._stop is False and self.exit is not True:
-                ser = serial.Serial('COM3', 115200)
-                msg = ser.read()
-                if msg:
+                with serial.Serial('COM3', 9600) as ser:
+                    a, b = [int(x) for x in ser.readline().split(',')]
+                if a and b:
                     try:
-                        self.bufferUpdated.emit(ord(msg))
-                        pass
+                        self.bufferUpdated.emit(a, b)
                     except ValueError:
                         print('Wrong data')
                 else:

@@ -38,6 +38,7 @@ def serial_ports():
 
 
 class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
+    monitorClose = pyqtSignal()
 
     def __init__(self):
         super(GraphPlotter, self).__init__()
@@ -56,6 +57,7 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.startButton.clicked.connect(self.monitor.start)
         self.stopButton.clicked.connect(self.monitor.stop)
         self.clearBufferButton.clicked.connect(self.clear)
+        self.monitorClose.connect(self.monitor.exit_f)
 
     def update(self, msg):
         if self.flag == 'a':
@@ -85,12 +87,14 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.a = []
         self.b = []
         self.c = [0]
-
         self.plotAB.clear()
         self.plotC.clear()
 
     def change_port(self):
         self.monitor.port = self.comboBox.currentText()
+
+    def closeEvent(self, event):
+        self.monitorClose.emit()
 
 
 class SerialMonitor(QObject):
@@ -98,30 +102,40 @@ class SerialMonitor(QObject):
 
     def __init__(self, port):
         super(SerialMonitor, self).__init__()
-        self.running = False
+        self.stopMutex = threading.Lock()
+        self._stop = True
+        self.exit = False
         self.port = port
         self.thread = threading.Thread(target=self.serial_monitor_thread)
-
-    def start(self):
-        self.running = True
         self.thread.start()
 
+    def start(self):
+        with self.stopMutex:
+            self._stop = False
+
     def stop(self):
-        self.running = False
+        with self.stopMutex:
+            self._stop = True
+
+    def exit_f(self):
+        self.exit = True
 
     def serial_monitor_thread(self):
-        while self.running is True:
-            ser = serial.Serial(self.port, 115200)
-            msg = ser.read()
-            if msg:
-                try:
-                    self.bufferUpdated.emit(ord(msg))
-                except ValueError:
-                    print('Wrong data')
-            else:
-                pass
-            ser.close()
-
+        while True:
+            while self._stop is False and self.exit is not True:
+                ser = serial.Serial('COM3', 115200)
+                msg = ser.read()
+                if msg:
+                    try:
+                        self.bufferUpdated.emit(ord(msg))
+                        pass
+                    except ValueError:
+                        print('Wrong data')
+                else:
+                    pass
+                ser.close()
+            if self.exit is True:
+                break
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)

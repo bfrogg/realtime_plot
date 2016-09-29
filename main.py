@@ -18,7 +18,7 @@ def serial_ports():
             A list of the serial ports available on the system
     """
     if sys.platform.startswith('win'):
-        ports = ['COM' + str((i + 1) for i in range(256))]
+        ports = ['COM' + `i` for i in range(10)]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
@@ -47,11 +47,11 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.b = []
         self.c = [0]
         self.setupUi(self)
-        self.plotAB.plotItem.showGrid(True, True, 0.7)
         self.plotAB.setYRange(0, 200, padding=0)
         self.plotAB.setXRange(0, 100, padding=0)
         self.plotC.setYRange(-20, 20, padding=0)
         self.plotC.setXRange(0, 100, padding=0)
+        self.plotAB.plotItem.showGrid(True, True, 0.7)
         self.plotC.plotItem.showGrid(True, True, 0.7)
         self.comboBox.addItems(serial_ports())
         self.monitor = SerialMonitor(self.comboBox.currentText())
@@ -70,6 +70,7 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         c2 = pyqtgraph.hsvColor(0.5, alpha=.5)
         c3 = pyqtgraph.hsvColor(0.7, alpha=.5)
 
+        # print only 100 points
         if len(self.a) > 100:
             num = len(self.a) - 100
             self.clear()
@@ -80,7 +81,6 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         for y, pen in [(self.a[num::], c1), (self.b[num::], c2)]:
             self.plotAB.plot(np.arange(len(self.a[num::])), y, pen=pen)
         try:
-            # print((self.a[-1] - self.a[-2]), (self.b[-1] - self.b[-2]))
             self.c.append((self.a[-1] - self.a[-2]) / (self.b[-1] - self.b[-2]))
             self.plotC.plot(np.arange(len(self.a[num::])), self.c[num::], pen=c3, clear=True)
         except ZeroDivisionError:
@@ -93,7 +93,7 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.plotC.clear()
 
     def change_port(self):
-        self.monitor.port = self.comboBox.currentText()
+        self.monitor.port = str(self.comboBox.currentText())
 
     def closeEvent(self, event):
         self.monitorClose.emit()
@@ -125,16 +125,20 @@ class SerialMonitor(QObject):
     def serial_monitor_thread(self):
         while True:
             while self._stop is False and self.exit is not True:
-                with serial.Serial('COM3', 9600) as ser:
-                    a, b = [int(x) for x in ser.readline().split(',')]
-                if a and b:
-                    try:
-                        self.bufferUpdated.emit(a, b)
-                    except ValueError:
-                        print('Wrong data')
-                else:
-                    pass
-                ser.close()
+                try:
+                    with serial.Serial(self.port, 9600) as ser:
+                        a, b = [int(x) for x in ser.readline().split(',')]
+                        if a and b:
+                            try:
+                                self.bufferUpdated.emit(a, b)
+                            except ValueError:
+                                print('Wrong data')
+                        else:
+                            pass
+                        ser.close()
+                except:
+                    print('Serial port ERROR')
+
             if self.exit is True:
                 break
 

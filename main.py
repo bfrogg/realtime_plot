@@ -46,6 +46,9 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.a = []
         self.b = []
         self.c = [0]
+        self.raw_a = []
+        self.raw_b = []
+        self.raw_c = []
         self.setupUi(self)
         self.plotAB.plotItem.showGrid(True, True, 0.7)
         self.plotC.plotItem.showGrid(True, True, 0.7)
@@ -62,20 +65,19 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
 
         self.a.append(a)
         self.b.append(b)
-        c = pyqtgraph.hsvColor(0.2, alpha=.5)
-        pen2 = pyqtgraph.mkPen(color=c, width=3)
+        c1 = pyqtgraph.hsvColor(0.8, alpha=.5)
+        c2 = pyqtgraph.hsvColor(0.5, alpha=.5)
+        c3 = pyqtgraph.hsvColor(0.7, alpha=.5)
+        for y, pen in [(self.a, c1), (self.b, c2)]:
+            self.plotAB.plot(np.arange(len(y)), y, pen=pen)
         try:
-            print((self.a[-1] - self.a[-2]), (self.b[-1] - self.b[-2]))
+            # print((self.a[-1] - self.a[-2]), (self.b[-1] - self.b[-2]))
             self.c.append((self.a[-1] - self.a[-2]) / (self.b[-1] - self.b[-2]))
-            self.plotC.plot(np.arange(len(self.c)), self.c, pen=pen2, clear=True)
+            self.plotC.plot(np.arange(len(self.c)), self.c, pen=c3, clear=True)
         except ZeroDivisionError:
-            print('Division by zero')
             self.c.append(0)
         except IndexError:
-            print("C doesn't ready")
-
-        for y, pen in [(self.a, (255, 0, 0)), (self.b, (0, 255, 0))]:
-            self.plotAB.plot(np.arange(len(y)), y, pen=pen)
+            pass
 
     def clear(self):
         self.a = []

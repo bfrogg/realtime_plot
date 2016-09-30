@@ -7,6 +7,8 @@ import pyqtgraph
 import threading
 import ui_main
 import numpy as np
+import xlwt as exel
+import time
 
 
 def serial_ports():
@@ -53,14 +55,20 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.plotC.setXRange(0, 100, padding=0)
         self.plotAB.plotItem.showGrid(True, True, 0.7)
         self.plotC.plotItem.showGrid(True, True, 0.7)
-        self.comboBox.addItems(serial_ports())
-        self.monitor = SerialMonitor(self.comboBox.currentText())
-        self.comboBox.currentIndexChanged.connect(self.change_port)
+        self.ports_comboBox.addItems(serial_ports())
+        self.baudrate_comboBox.addItems(['110', '150', '300', '1200', '2400', '4800', '9600', '19200',
+                                         '38400', '57600', '115200', '230400', '460800', '921600'])
+        self.baudrate_comboBox.setCurrentIndex(6)
+        self.monitor = SerialMonitor(self.ports_comboBox.currentText(), self.baudrate_comboBox.currentText())
+        self.ports_comboBox.currentIndexChanged.connect(self.change_port)
+        self.baudrate_comboBox.currentIndexChanged.connect(self.change_baudrate)
         self.monitor.bufferUpdated.connect(self.update)
         self.startButton.clicked.connect(self.monitor.start)
         self.stopButton.clicked.connect(self.monitor.stop)
         self.clearBufferButton.clicked.connect(self.clear_buffer)
         self.monitorClose.connect(self.monitor.exit_f)
+        self.wb = exel.Workbook()
+        self.sheet = self.wb.add_sheet('Test')
 
     def update(self, a, b):
 
@@ -74,7 +82,6 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         if len(self.a) > 100:
             num = len(self.a) - 100
             self.clear()
-
         else:
             num = 0
 
@@ -93,13 +100,22 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
         self.plotC.clear()
 
     def clear_buffer(self):
+        for i in range(1, len(self.a)):
+            self.sheet.write(i, 0, self.a[i-1])
+            self.sheet.write(i, 1, self.b[i-1])
+            self.sheet.write(i, 2, self.c[i-1])
+
+        self.wb.save("D:/buffer.xls")
         self.a = []
         self.b = []
         self.c = [0]
         self.clear()
 
     def change_port(self):
-        self.monitor.port = str(self.comboBox.currentText())
+        self.monitor.port = str(self.ports_comboBox.currentText())
+
+    def change_baudrate(self):
+        self.monitor.baudrate = str(self.baudrate_comboBox.currentText())
 
     def closeEvent(self, event):
         self.monitorClose.emit()
@@ -108,12 +124,13 @@ class GraphPlotter(QtGui.QMainWindow, ui_main.Ui_GraphPlotter):
 class SerialMonitor(QObject):
     bufferUpdated = pyqtSignal(int, int)
 
-    def __init__(self, port):
+    def __init__(self, port, baudrate):
         super(SerialMonitor, self).__init__()
         self.stopMutex = threading.Lock()
         self._stop = True
         self.exit = False
         self.port = port
+        self.baudrate = baudrate
         self.thread = threading.Thread(target=self.serial_monitor_thread)
         self.thread.start()
 
@@ -132,10 +149,20 @@ class SerialMonitor(QObject):
         while True:
             while self._stop is False and self.exit is not True:
                 try:
-                    with serial.Serial(self.port, 9600) as ser:
-                        a, b = [int(x) for x in ser.readline().split(',')]
-                        if a and b:
+                    with serial.Serial(self.port, self.baudrate) as ser:
+                        tic = time.time()
+                        tout = 2
+                        buff = ''
+                        while (time.time() - tic) < tout:
+                            buff += ser.read()
+                            if '\n' in buff:
+                                break
+                        if '\n' not in buff:
+                            print('Timeout')
+                            break
+                        if buff != "":
                             try:
+                                a, b = [int(x) for x in buff.split(',')]
                                 self.bufferUpdated.emit(a, b)
                             except ValueError:
                                 print('Wrong data')

@@ -53,6 +53,13 @@
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="save_bufferButton">
+          <property name="text">
+           <string>Сохранить буфер</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QLabel" name="label">
           <property name="text">
            <string>Доступные порты</string>
@@ -79,27 +86,20 @@
          <widget class="QComboBox" name="baudrate_comboBox"/>
         </item>
         <item>
-         <widget class="QLabel" name="error_label">
-          <property name="text">
-           <string/>
+         <widget class="QTextBrowser" name="textBrowser">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <spacer name="verticalSpacer">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
+          <property name="maximumSize">
            <size>
-            <width>20</width>
-            <height>40</height>
+            <width>100</width>
+            <height>16777215</height>
            </size>
           </property>
-         </spacer>
+         </widget>
         </item>
        </layout>
       </item>
